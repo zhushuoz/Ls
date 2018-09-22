@@ -5,7 +5,7 @@
 	> Created Time: 2018年09月21日 星期五 20时48分52秒
  ************************************************************************/
 
-#include<stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
@@ -15,8 +15,28 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
+#include <math.h>
 
+int gid_len = 0, uid_len = 0, size_len = 0, nl_len = 0;
+char str[50];
 
+void len (DIR *dir) {
+    struct dirent *rent;
+    FILE *fout = fopen("/dev/null", "w");
+    while (rent = readdir(dir)) {
+        int l;
+        struct stat e;
+        stat(rent->d_name, &e);
+        struct group *grp_p = getgrgid(e.st_gid);
+        if (gid_len < (l = strlen(grp_p->gr_name))) gid_len = l;
+        struct passwd *pw_ptr = getpwuid(e.st_uid);
+        if (uid_len < (l = strlen(pw_ptr->pw_name))) uid_len = l;
+        if (size_len < (l = log10(e.st_size) + 1)) size_len = l;
+        if (nl_len < (l = log10(e.st_nlink) + 1)) nl_len = l;
+       
+    }
+
+}
 char *find_qx(int mode) {//求文件权限
     char *str;
     str = (char *)malloc(sizeof(char) * 10);
@@ -41,25 +61,25 @@ char *find_qx(int mode) {//求文件权限
 void uid_name(uid_t uid) {//求文件所有者
     struct passwd *pw_ptr;
     pw_ptr = getpwuid(uid);
-    printf("%-7s  ", pw_ptr->pw_name);
+    printf("%-*s", uid_len + 1, pw_ptr->pw_name);
 }
 
 
 void gid_name(gid_t gid) {//寻找文件所有组
     struct group *grp_p;
     grp_p = getgrgid(gid);
-    printf("%-7s ", grp_p->gr_name);
+    printf("%-*s", gid_len + 1,grp_p->gr_name);
 }
 
 void output(struct dirent *rent, struct stat e) {
     char *str;
     str = (char *)malloc(sizeof(char) * 11);
     str = find_qx(e.st_mode); //输出文件类型和权限
-    printf("%-4d", (int)e.st_nlink);
+    printf("%-*d", nl_len + 1, (int)e.st_nlink);
     uid_name(e.st_uid); //输出文件所有者
     gid_name(e.st_gid); //输出文件的所有组 
-    printf("%8d", (int)e.st_size);//输出文件大小
-    printf(" %.12s",ctime(&e.st_mtime) + 4);
+    printf("%*d ", size_len, (int)e.st_size);//输出文件大小
+    printf("%.12s",ctime(&e.st_mtime) + 4);
     if (str[0] == 'd')  printf("\e[1;34m %s\n\e[0m", rent->d_name);
     else if (str[3] == 'x' || str[6] == 'x' || str[9] == 'x')       printf("\e[1;32m %s\n\e[0m", rent->d_name);
     else printf(" %s\n", rent->d_name);
@@ -78,7 +98,8 @@ void ls_al(DIR *dir) {
 int main() {
     DIR *dir;
     dir = opendir(".");
-    struct dirent *rent;
+    len(dir);
+    dir = opendir(".");
 
     ls_al(dir);
     return 0;
